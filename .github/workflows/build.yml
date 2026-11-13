@@ -21,30 +21,35 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Check Project Files
+      - name: Find Android Project
+        id: project
         run: |
-          echo "Checking repository..."
-          ls -la
-          find . -maxdepth 4 -type f | head -200
+          echo "Searching Android project..."
+          find . -name gradlew -type f
+          find . -name build.gradle -o -name build.gradle.kts
+
+          PROJECT=$(find . -name gradlew -type f | head -n 1)
+
+          if [ -z "$PROJECT" ]; then
+            echo "ERROR: No Gradle wrapper found."
+            echo "Repository contents:"
+            find . -maxdepth 5 -type f
+            exit 1
+          fi
+
+          DIR=$(dirname "$PROJECT")
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
       - name: Build APK
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug
-          elif [ -f "./build.gradle" ] || [ -f "./build.gradle.kts" ]; then
-            gradle assembleDebug
-          else
-            echo "ERROR: Gradle project not found!"
-            echo "Please check your project structure."
-            exit 1
-          fi
+          cd "${{ steps.project.outputs.dir }}"
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MANIPULATOR-WORLD-APK
-          path: |
-            **/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
           
