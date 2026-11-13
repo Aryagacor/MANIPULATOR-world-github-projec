@@ -28,24 +28,57 @@ jobs:
           PROJECT_DIR=$(find /tmp/manipulator-source -name package.json -print -quit | xargs dirname)
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: package.json tidak ditemukan!"
+            echo "ERROR: package.json tidak ditemukan"
             exit 1
           fi
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-          echo "Project ditemukan: $PROJECT_DIR"
+          echo "Project: $PROJECT_DIR"
 
-      - name: Check Admin Login Source
+      - name: Fix Admin Authentication
         run: |
-          echo "=== CHECKING INDEX HTML ==="
-          if [ ! -f "$PROJECT_DIR/www/index.html" ]; then
-            echo "ERROR: index.html tidak ditemukan!"
-            find "$PROJECT_DIR" -maxdepth 4 -type f
-            exit 1
-          fi
+          python3 - <<'PY'
+          import os
 
-          echo "=== ADMIN KEYWORDS ==="
-          grep -inE 'admin|username|password|login|register' "$PROJECT_DIR/www/index.html" | head -40 || true
+          path = os.path.join(
+              os.environ["PROJECT_DIR"],
+              "www/index.html"
+          )
+
+          with open(path, "r", encoding="utf-8") as f:
+              html = f.read()
+
+          old_admin = "function ensureAdminAccount(){let a=accounts();a.admin={...ADMIN_SEED};saveAccounts(a)}"
+
+          new_admin = """async function ensureAdminAccount(){
+            let a=accounts();
+            a.admin={
+              ...ADMIN_SEED,
+              username:'ADMIN',
+              role:'admin',
+              hash:await hash('ayam9933',ADMIN_SEED.salt)
+            };
+            saveAccounts(a);
+          }"""
+
+          if old_admin not in html:
+              raise SystemExit("ERROR: Fungsi ADMIN lama tidak ditemukan")
+
+          html = html.replace(old_admin, new_admin, 1)
+
+          old_init = "(async()=>{ensureAdminAccount();let u="
+          new_init = "(async()=>{await ensureAdminAccount();let u="
+
+          if old_init not in html:
+              raise SystemExit("ERROR: Inisialisasi aplikasi tidak ditemukan")
+
+          html = html.replace(old_init, new_init, 1)
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(html)
+
+          print("ADMIN authentication berhasil diperbarui")
+          PY
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -82,7 +115,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MANIPULATOR-WORLD-APK
+          name: MANIPULATOR-WORLD-ADMIN-FIXED
           path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
