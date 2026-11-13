@@ -17,8 +17,9 @@ jobs:
 
       - name: Extract Project ZIP
         run: |
-          unzip MANIPULATOR-WORLD-REPAIRED-SOURCE.zip
-          cd MANIPULATOR_WORLD
+          unzip -o MANIPULATOR-WORLD-REPAIRED-SOURCE.zip
+          ls -la
+          ls -la MANIPULATOR_WORLD
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
