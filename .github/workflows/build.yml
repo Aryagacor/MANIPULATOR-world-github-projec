@@ -7,9 +7,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,95 +15,44 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
+      - name: Extract Project ZIP
+        run: |
+          unzip MANIPULATOR-WORLD-REPAIRED-SOURCE.zip
+          cd MANIPULATOR_WORLD
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 20
 
-      - name: Install Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip python3-pil
-
-      - name: Extract Updated Project
-        run: |
-          ZIP="MANIPULATOR-WORLD-UPDATED-SOURCE.zip"
-
-          if [ ! -f "$ZIP" ]; then
-            echo "Updated ZIP not found!"
-            exit 1
-          fi
-
-          mkdir project
-          unzip -o "$ZIP" -d project
-
-      - name: Verify Project
-        working-directory: project
-        run: |
-          if [ ! -f package.json ]; then
-            echo "package.json not found in project root!"
-            find . -maxdepth 3 -name package.json
-            exit 1
-          fi
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
 
       - name: Install Dependencies
-        working-directory: project
-        run: npm install --no-audit --no-fund
+        working-directory: MANIPULATOR_WORLD
+        run: npm install
 
-      - name: Generate Android Project
-        working-directory: project
-        run: npx cap add android
-
-      - name: Sync Android
-        working-directory: project
-        run: npx cap sync android
-
-      - name: Apply App Icon
-        working-directory: project
+      - name: Setup Android
+        working-directory: MANIPULATOR_WORLD
         run: |
-          python3 - <<'PY'
-          from PIL import Image
-          import os
-
-          src = Image.open("www/assets/app-icon.jpg").convert("RGBA")
-
-          sizes = {
-              "mdpi": 48,
-              "hdpi": 72,
-              "xhdpi": 96,
-              "xxhdpi": 144,
-              "xxxhdpi": 192
-          }
-
-          for density, size in sizes.items():
-              folder = f"android/app/src/main/res/mipmap-{density}"
-              os.makedirs(folder, exist_ok=True)
-
-              icon = src.resize(
-                  (size, size),
-                  Image.Resampling.LANCZOS
-              )
-
-              icon.save(f"{folder}/ic_launcher.png")
-              icon.save(f"{folder}/ic_launcher_round.png")
-          PY
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
 
       - name: Build APK
-        working-directory: project/android
+        working-directory: MANIPULATOR_WORLD
         run: |
+          cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MANIPULATOR-WORLD-APK-UPDATED
-          path: project/android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          name: MANIPULATOR-WORLD-APK
+          path: MANIPULATOR_WORLD/android/app/build/outputs/apk/debug/app-debug.apk
           
