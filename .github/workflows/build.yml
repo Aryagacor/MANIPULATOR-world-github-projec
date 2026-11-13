@@ -34,17 +34,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip python3-pil
 
-      - name: Extract Repaired Project
+      - name: Extract Updated Project
         run: |
-          ZIP="MANIPULATOR-WORLD-REPAIRED-SOURCE.zip"
+          ZIP="MANIPULATOR-WORLD-UPDATED-SOURCE.zip"
 
           if [ ! -f "$ZIP" ]; then
-            echo "Repaired ZIP not found!"
+            echo "Updated ZIP not found!"
             exit 1
           fi
 
           mkdir project
           unzip -o "$ZIP" -d project
+
+      - name: Verify Project
+        working-directory: project
+        run: |
+          if [ ! -f package.json ]; then
+            echo "package.json not found in project root!"
+            find . -maxdepth 3 -name package.json
+            exit 1
+          fi
 
       - name: Install Dependencies
         working-directory: project
@@ -97,7 +106,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MANIPULATOR-WORLD-APK
+          name: MANIPULATOR-WORLD-APK-UPDATED
           path: project/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           
