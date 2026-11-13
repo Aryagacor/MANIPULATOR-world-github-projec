@@ -23,9 +23,6 @@ jobs:
           mkdir -p /tmp/manipulator-source
           unzip -o MANIPULATOR-WORLD-LEVEL-UNLOCK-SOURCE.zip -d /tmp/manipulator-source
 
-          echo "=== SOURCE FILES ==="
-          find /tmp/manipulator-source -name package.json
-
       - name: Detect Project Folder
         run: |
           PROJECT_DIR=$(find /tmp/manipulator-source -name package.json -print -quit | xargs dirname)
@@ -37,6 +34,18 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
           echo "Project ditemukan: $PROJECT_DIR"
+
+      - name: Check Admin Login Source
+        run: |
+          echo "=== CHECKING INDEX HTML ==="
+          if [ ! -f "$PROJECT_DIR/www/index.html" ]; then
+            echo "ERROR: index.html tidak ditemukan!"
+            find "$PROJECT_DIR" -maxdepth 4 -type f
+            exit 1
+          fi
+
+          echo "=== ADMIN KEYWORDS ==="
+          grep -inE 'admin|username|password|login|register' "$PROJECT_DIR/www/index.html" | head -40 || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -73,7 +82,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MANIPULATOR-WORLD-LEVEL-UNLOCK-APK
+          name: MANIPULATOR-WORLD-APK
           path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
