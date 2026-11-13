@@ -7,6 +7,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,9 +18,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract Project ZIP
+      - name: Extract Latest Source
         run: |
-          unzip -o MANIPULATOR-WORLD-REPAIRED-SOURCE.zip
+          mkdir -p /tmp/manipulator-source
+          unzip -o MANIPULATOR-WORLD-LEVEL-UNLOCK-SOURCE.zip -d /tmp/manipulator-source
+
+          echo "=== SOURCE FILES ==="
+          find /tmp/manipulator-source -name package.json
+
+      - name: Detect Project Folder
+        run: |
+          PROJECT_DIR=$(find /tmp/manipulator-source -name package.json -print -quit | xargs dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: package.json tidak ditemukan!"
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project ditemukan: $PROJECT_DIR"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,24 +50,31 @@ jobs:
           java-version: 21
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          cd "$PROJECT_DIR"
+          npm install
 
       - name: Setup Capacitor Android
         run: |
+          cd "$PROJECT_DIR"
+
           if [ ! -d android ]; then
             npx cap add android
           fi
+
           npx cap sync android
 
       - name: Build APK
         run: |
-          cd android
+          cd "$PROJECT_DIR/android"
           chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MANIPULATOR-WORLD-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: MANIPULATOR-WORLD-LEVEL-UNLOCK-APK
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
           
